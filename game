@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Memory Puzzle Doa-Doa Salat (Enhanced)</title>
+<style>
+  :root{
+    --bg: #eef6ff;
+    --card-front: #4c8fff;
+    --card-back: #ffdede;
+    --accent: #7dff9b;
+    --danger: #ff8a8a;
+    --text: #073763;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family: Inter, system-ui, Arial;
+    background: linear-gradient(180deg,var(--bg),#ffffff 60%);
+    color:var(--text);
+    display:flex;
+    min-height:100vh;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+  }
+
+  .app{
+    width:100%;
+    max-width:980px;
+  }
+
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:12px;
+  }
+
+  h1{font-size:20px;margin:0}
+  .controls{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+
+  select, button{
+    padding:8px 12px;
+    border-radius:10px;
+    border: none;
+    background:#fff;
+    box-shadow:0 4px 10px rgba(10,30,80,0.06);
+    color:var(--text);
+    font-weight:600;
+    cursor:pointer;
+  }
+
+  .stats{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    font-size:14px;
+  }
+
+  .panel{
+    background: white;
+    padding:14px;
+    border-radius:14px;
+    box-shadow:0 10px 30px rgba(8,30,80,0.06);
+  }
+
+  main{
+    display:grid;
+    grid-template-columns: 1fr 360px;
+    gap:18px;
+    margin-top:12px;
+  }
+
+  /* Board */
+  .board{
+    display:grid;
+    gap:12px;
+    justify-content:center;
+  }
+
+  /* responsive columns based on level will be set by JS */
+  .card {
+    width:100%;
+    aspect-ratio:1/1;
+    max-width:140px;
+    perspective:1000px;
+    cursor:pointer;
+  }
+
+  .card-inner{
+    position:relative;
+    width:100%;
+    height:100%;
+    transform-style:preserve-3d;
+    transition: transform 0.55s cubic-bezier(.2,.9,.2,1);
+    border-radius:14px;
+  }
+
+  .card.flipped .card-inner { transform: rotateY(180deg); }
+
+  .face{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:14px;
+    backface-visibility:hidden;
+    box-shadow: 0 6px 18px rgba(10,30,80,0.08);
+    padding:10px;
+    text-align:center;
+    overflow:hidden;
+  }
+
+  .front{
+    background: linear-gradient(180deg,var(--card-front), #2f6fe6);
+    color:white;
+    font-weight:700;
+    font-size:20px;
+  }
+
+  .back{
+    transform:rotateY(180deg);
+    background: linear-gradient(180deg,#fff,#fff);
+    border:4px solid #fff0;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    justify-content:center;
+    align-items:center;
+  }
+
+  /* emoji 'image' */
+  .emoji{
+    font-size:40px;
+    transform: translateY(-6px);
+  }
+
+  .label{
+    font-size:13px;
+    color:#113058;
+  }
+
+  /* match animation */
+  .card.matched .card-inner{ transition: transform .35s; transform: scale(1.03) rotateY(180deg); }
+  .card.matched .face{ animation: glow 0.8s ease; }
+  @keyframes glow{
+    0%{ box-shadow:0 0 0px rgba(125,255,155,0.0) }
+    100%{ box-shadow:0 0 18px rgba(125,255,155,0.25) }
+  }
+
+  /* shake */
+  .card.wrong .card-inner{ animation: shake 0.45s; }
+  @keyframes shake{
+    0%{ transform: translateX(0) }
+    25%{ transform: translateX(-8px) }
+    50%{ transform: translateX(8px) }
+    75%{ transform: translateX(-6px) }
+    100%{ transform: translateX(0) }
+  }
+
+  /* HUD on right */
+  aside .panel{ display:flex; flex-direction:column; gap:12px; }
+  .hud-row{ display:flex; justify-content:space-between; align-items:center; gap:6px }
+  .meter{
+    height:12px;
+    background:#f0f4ff;
+    border-radius:10px;
+    overflow:hidden;
+  }
+  .meter > i{
+    display:block;
+    height:100%;
+    width:100%;
+    background: linear-gradient(90deg,#7dff9b,#3ac36a);
+    transition: width 0.3s;
+  }
+
+  .tiny{font-size:12px;color:#446088}
+
+  footer{ margin-top:12px; text-align:center; color:#7a97c3; font-size:13px; }
+
+  /* small screens */
+  @media (max-width:880px){
+    main{ grid-template-columns:1fr; }
+    .board{ margin-inline:auto; }
+    aside{ order:2; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>🧠 Memory Puzzle — Doa-Doa dalam Salat</h1>
+        <div class="tiny">Latih hafalan doa salat dengan memory card — lengkap animasi & suara</div>
+      </div>
+
+      <div class="controls">
+        <label class="tiny">Level</label>
+        <select id="level">
+          <option value="easy">Mudah (4 pasang)</option>
+          <option value="medium" selected>Sedang (6 pasang)</option>
+          <option value="hard">Sulit (8 pasang)</option>
+        </select>
+        <button id="startBtn">Mulai Game</button>
+      </div>
+    </header>
+
+    <main>
+      <section>
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div class="stats">
+              <div><b>Skor:</b> <span id="score">0</span></div>
+              <div><b>Waktu:</b> <span id="time">00:00</span></div>
+              <div><b>Matches:</b> <span id="found">0</span>/<span id="totalPairs">6</span></div>
+            </div>
+            <div class="tiny">Tiap match = +100, bonus waktu tersisa ditambahkan saat selesai</div>
+          </div>
+
+          <div id="board" class="board" style="margin-top:10px;"></div>
+        </div>
+      </section>
+
+      <aside>
+        <div class="panel">
+          <div>
+            <div class="hud-row"><div><b>Timer</b></div><div class="tiny">Berjalan mundur</div></div>
+            <div class="meter" title="Waktu"><i id="timeMeter" style="width:100%"></i></div>
+          </div>
+
+          <div>
+            <div class="hud-row"><div><b>Skor</b></div><div id="score2">0</div></div>
+            <div class="tiny">Menang cepat dapat bonus waktu</div>
+          </div>
+
+          <div>
+            <div class="hud-row"><div><b>Aturan</b></div></div>
+            <ol class="tiny" style="margin:8px 0 0 18px;padding:0">
+              <li>Balik dua kartu per giliran.</li>
+              <li>Jika cocok → +100 poin (bounce & glow).</li>
+              <li>Jika salah → -10 poin (shake).</li>
+              <li>Tergantung level, waktu akan berbeda.</li>
+            </ol>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-direction:column">
+            <button id="restartBtn">Mulai Ulang</button>
+            <button id="muteBtn">🔊 Suara: On</button>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <footer>
+      dibuat dengan 💖 — cocok untuk belajar & latihan hafalan
+    </footer>
+  </div>
+
+<script>
+/* ========== DATA: Pair = [text, label, emoji] ========== */
+/* text = back text (bisa potongan doa atau bacaan)
+   label = keterangan singkat (akan ditampilkan di bawah emoji)
+   emoji = gambar/desain kartu (simple dan ringan) */
+const ALL_PAIRS = [
+  ["Allahu Akbar", "Takbiratul Ihram", "🕌"],
+  ["Subhanaka Allahumma", "Doa Iftitah", "🤲"],
+  ["Bismillahirrahmanirrahim", "Awalan (Bismillah)", "📿"],
+  ["Subhana Rabbiyal A'zim", "Ruku'", "🙇‍♂️"],
+  ["Sami'allahu liman hamidah", "I'tidal", "📣"],
+  ["Subhana Rabbiyal A'la", "Sujud", "🙏"],
+  ["Rabbighfirli warhamni", "Duduk di antara dua sujud", "🪑"],
+  ["At-tahiyyatu lillahi", "Tasyahhud", "📝"]
+];
+
+/* VARIABLES */
+let level = 'medium';
+let pairsCount = 6;
+let boardEl = document.getElementById('board');
+let scoreEl = document.getElementById('score');
+let timeEl = document.getElementById('time');
+let foundEl = document.getElementById('found');
+let totalPairsEl = document.getElementById('totalPairs');
+let timeMeter = document.getElementById('timeMeter');
+let scoreSide = document.getElementById('score2');
+
+let startBtn = document.getElementById('startBtn');
+let restartBtn = document.getElementById('restartBtn');
+let levelSelect = document.getElementById('level');
+let muteBtn = document.getElementById('muteBtn');
+
+let timerInterval = null;
+let totalTime = 120; // seconds, changes by level
+let timeLeft = 0;
+
+let firstCard = null;
+let secondCard = null;
+let lockBoard = false;
+let matchesFound = 0;
+let score = 0;
+let cards = [];
+let mute = false;
+
+/* AUDIO using Web Audio API (simple tones) */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playTone(freq, type='sine', duration=0.12, gain=0.12){
+  if(mute) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.value = gain;
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + duration);
+}
+
+/* SOUND presets */
+function soundFlip(){ playTone(760,'sine',0.06,0.05); }
+function soundCorrect(){ playTone(880,'sine',0.14,0.12); setTimeout(()=>playTone(1100,'sine',0.09,0.08),90); }
+function soundWrong(){ playTone(220,'sawtooth',0.22,0.12); }
+
+/* UTIL */
+function secToMMSS(s){
+  const mm = Math.floor(s/60).toString().padStart(2,'0');
+  const ss = Math.floor(s%60).toString().padStart(2,'0');
+  return `${mm}:${ss}`;
+}
+
+/* SET LEVEL */
+function setLevel(val){
+  level = val;
+  if(level === 'easy'){ pairsCount = 4; totalTime = 70; }
+  if(level === 'medium'){ pairsCount = 6; totalTime = 120; }
+  if(level === 'hard'){ pairsCount = 8; totalTime = 180; }
+  totalPairsEl.innerText = pairsCount;
+}
+
+/* BUILD BOARD */
+function buildBoard(){
+  // choose first N pairs from ALL_PAIRS (could randomize selection)
+  const pool = [...ALL_PAIRS].sort(()=>Math.random()-0.5).slice(0,pairsCount);
+
+  // create card objects (two per pair)
+  cards = [];
+  pool.forEach( (p, idx) => {
+    const id = idx;
+    cards.push({ id, text:p[0], label:p[1], emoji:p[2] });
+    cards.push({ id, text:p[1], label:p[0], emoji:p[2] }); // mix: make pair matching by same id but different text (practice matching bacaan vs meaning)
+  });
+
+  // shuffle
+  cards.sort(()=>Math.random() - 0.5);
+
+  // grid columns based on pairs
+  let cols = (pairsCount <=4) ? 4 : (pairsCount <=6) ? 4 : 4;
+  boardEl.style.gridTemplateColumns = `repeat(${cols}, minmax(90px, 1fr))`;
+
+  boardEl.innerHTML = '';
+  cards.forEach((c, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = c.id;
+    card.dataset.index = i;
+
+    // inner html with front & back (emoji + text)
+    card.innerHTML = `
+      <div class="card-inner">
+        <div class="face front">🔒</div>
+        <div class="face back">
+          <div class="emoji">${c.emoji}</div>
+          <div class="label">${escapeHtml(c.text)}</div>
+        </div>
+      </div>
+    `;
+    // events
+    card.addEventListener('click', ()=> onCardClick(card));
+    boardEl.appendChild(card);
+  });
+}
+
+/* escape small html */
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* GAME FLOW */
+function startGame(){
+  // reset
+  clearInterval(timerInterval);
+  firstCard = null; secondCard = null; lockBoard = false;
+  matchesFound = 0; score = 0;
+  setLevel(levelSelect.value);
+  scoreEl.innerText = score;
+  scoreSide.innerText = score;
+  foundEl.innerText = matchesFound;
+  buildBoard();
+
+  // time
+  timeLeft = totalTime;
+  timeEl.innerText = secToMMSS(timeLeft);
+  timeMeter.style.width = '100%';
+  timerInterval = setInterval(()=>{
+    timeLeft--;
+    if(timeLeft < 0) { timeLeft = 0; endGame(false); return; }
+    timeEl.innerText = secToMMSS(timeLeft);
+    timeMeter.style.width = `${Math.max(0, (timeLeft/totalTime)*100)}%`;
+  }, 1000);
+}
+
+/* clicking a card */
+function onCardClick(card){
+  if(lockBoard) return;
+  if(card.classList.contains('flipped')) return;
+
+  flip(card);
+  soundFlip();
+
+  if(!firstCard){
+    firstCard = card;
+    return;
+  }
+
+  secondCard = card;
+  lockBoard = true;
+
+  // compare by data-id
+  if(firstCard.dataset.id === secondCard.dataset.id){
+    // match
+    setTimeout(()=> {
+      onMatch(firstCard, secondCard);
+      resetTurn();
+    }, 400);
+  } else {
+    // mismatch
+    setTimeout(()=> {
+      onMismatch(firstCard, secondCard);
+      resetTurn();
+    }, 700);
+  }
+}
+
+/* flip visuals */
+function flip(card){
+  card.classList.add('flipped');
+}
+
+/* unflip */
+function unflip(card){
+  card.classList.remove('flipped');
+}
+
+/* on match */
+function onMatch(c1,c2){
+  c1.classList.add('matched');
+  c2.classList.add('matched');
+  matchesFound++;
+  score += 100;
+  scoreEl.innerText = score;
+  scoreSide.innerText = score;
+  foundEl.innerText = matchesFound;
+
+  // visual + sound
+  soundCorrect();
+
+  // small bounce effect
+  c1.style.transition = 'transform .25s';
+  c2.style.transition = 'transform .25s';
+  c1.style.transform = 'scale(1.03)';
+  c2.style.transform = 'scale(1.03)';
+  setTimeout(()=>{ c1.style.transform=''; c2.style.transform=''; },350);
+
+  // check win
+  if(matchesFound === pairsCount){
+    // add bonus based on remaining time
+    const bonus = Math.floor(timeLeft) * 2; // 2 points per second
+    score += bonus;
+    scoreEl.innerText = score;
+    scoreSide.innerText = score;
+    setTimeout(()=> endGame(true, bonus), 500);
+  }
+}
+
+/* on mismatch */
+function onMismatch(c1,c2){
+  // shake animation
+  c1.classList.add('wrong');
+  c2.classList.add('wrong');
+  soundWrong();
+  score = Math.max(0, score - 10);
+  scoreEl.innerText = score;
+  scoreSide.innerText = score;
+  setTimeout(()=>{
+    c1.classList.remove('wrong');
+    c2.classList.remove('wrong');
+    unflip(c1); unflip(c2);
+  }, 650);
+}
+
+/* reset turn */
+function resetTurn(){
+  firstCard = null; secondCard = null; lockBoard = false;
+}
+
+/* end game */
+function endGame(won, bonus=0){
+  clearInterval(timerInterval);
+  lockBoard = true;
+  setTimeout(()=>{
+    if(won){
+      alert(`🎉 Selamat! Kamu menang!\nSkor akhir: ${score}\nBonus waktu: ${bonus} poin`);
+    } else {
+      alert(`⏰ Waktu habis!\nSkor akhir: ${score}\nCoba lagi ya :)`);
+    }
+  }, 150);
+}
+
+/* EVENTS for UI */
+startBtn.addEventListener('click', ()=> { startGame(); });
+restartBtn.addEventListener('click', ()=> { startGame(); });
+levelSelect.addEventListener('change', ()=> {
+  setLevel(levelSelect.value);
+});
+muteBtn.addEventListener('click', ()=>{
+  mute = !mute;
+  muteBtn.innerText = mute ? '🔇 Suara: Off' : '🔊 Suara: On';
+});
+
+/* start default */
+setLevel(levelSelect.value);
+startGame();
+
+</script>
+</body>
+</html>
